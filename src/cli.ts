@@ -14,7 +14,9 @@ program.name('datasus').description('Utilities to work with DATASUS SIASUS files
 program
   .command('download <yymm>')
   .description('Download a DATASUS SIASUS .dbc file given a YYMM (e.g. 2401)')
-  .addOption(new Option('--workdir <dir>', 'working directory').default(env.PET_WORKDIR))
+  .addOption(
+    new Option('--workdir <dir>', 'working directory').default(env.PET_WORKDIR).env('PET_WORKDIR'),
+  )
   .addOption(new Option('--force', 'override file if it exists').default(false))
   .action(async (yymm: string, options: { workdir: string; force: boolean }) => {
     if (!yymm || !/^\d{4}$/.test(yymm)) {
@@ -38,7 +40,9 @@ program
 program
   .command('uncompress <yymm>')
   .description('Uncompress .dbc file (.dbc file should be downloaded)')
-  .addOption(new Option('--workdir <dir>', 'working directory').default(env.PET_WORKDIR))
+  .addOption(
+    new Option('--workdir <dir>', 'working directory').default(env.PET_WORKDIR).env('PET_WORKDIR'),
+  )
   .addOption(new Option('-f, --force', 'force reload / overwrite').default(false))
   .action(async (yymm: string, options: { workdir: string; force: boolean }) => {
     if (!yymm || !/^\d{4}$/.test(yymm)) {
