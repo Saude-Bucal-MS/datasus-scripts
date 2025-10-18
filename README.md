@@ -1,96 +1,75 @@
-# ts-template
 
-Template mínimo em TypeScript para projetos Node.js (ESM) focado em produtividade e convenções modernas.
+# Saude Bucal MS - Datasus scripts
 
-Este repositório fornece uma base simples com configuração pronta para desenvolvimento, build e testes:
+Repositório com utilitários mínimos em TypeScript (ESM) para baixar, descompactar e carregar conjuntos de dados públicos do SIASUS (Datasus).
 
-- TypeScript com `tsc` (target Node 22+)
-- Execução rápida em desenvolvimento com `tsx`
-- Alias de compilação com `tsc-alias`
-- Testes com `vitest`
-- Linter/format via `biome` (configurada nos scripts)
-- Suporte a variáveis de ambiente via `dotenv-flow`
-- Fluxo de releases com `release-it` e convenção de commits (Commitizen + commitlint)
+## Objetivo
+
+Fornecer utilitários simples e reprodutíveis para baixar, descompactar e preparar arquivos DBC/DBF do Datasus para processamento posterior. O projeto inclui um CLI básico e bibliotecas auxiliares em `deps/` para suportar fluxos nativos quando necessário.
 
 ## Requisitos
 
 - Node.js >= 22
-- npm / yarn / pnpm (qualquer gerenciador de pacotes que preferir)
+- yarn
 
 ## Instalação
 
-Instale dependências:
+Instale as dependências:
 
 ```bash
-npm install
+yarn install
+```
+
+Build (compila TypeScript e aplica aliases):
+
+```bash
+yarn build
+```
+
+Lint/checagens:
+
+```bash
+yarn check
+yarn check:fix
+```
+
+Testes:
+
+```bash
+yarn test
 ```
 
 ## Estrutura do projeto
 
-Principais arquivos e pastas:
-
 - `package.json` — scripts e dependências
-- `tsconfig.json` — configuração do compilador TypeScript
-- `src/` — código fonte (ex.: `src/index.ts`)
-- `dist/` — saída de build (gerada)
+- `tsconfig.json` — configuração do TypeScript
+- `biome.json` — configuração do linter/formatter
+- `src/` — código-fonte
+  - `src/cli.ts` — interface de linha de comando (wrapper)
+  - `src/lib` — funções fundamentais para os processos providos
+  - `src/utils` — classes utilitarias e helpers
+- `deps/` — dependências nativas/extras
 
-## Scripts úteis
+## Uso do CLI (exemplos)
 
-Os scripts definidos em `package.json`:
-
-- `npm run dev` — executa `src/index.ts` em modo desenvolvimento com `tsx` e `dotenv-flow`.
-- `npm run build` — compila TypeScript (`tsc`) e aplica `tsc-alias` para resolver paths.
-- `npm run start` — executa a build (`dist/index.js`) com suporte a `dotenv-flow`.
-- `npm run check` — executa `biome check` (lint/static analysis).
-- `npm run check:fix` — tenta corrigir problemas automaticamente (`biome check --fix`).
-- `npm run test` — roda testes com `vitest` (pasta `src`).
-- `npm run test:coverage` — roda testes com cobertura.
-- `npm run verify` — roda `check`, `test` e `build` (fluxo de verificação).
-- `npm run release` — inicia fluxo de release via `release-it` (configurar antes de usar).
-
-Exemplo rápido (desenvolvimento):
+Os exemplos abaixo assumem uso em desenvolvimento (`yarn dev ...`) ou execução da build (`yarn cli ...`).
 
 ```bash
-npm run dev
+# Baixar um arquivo para um diretório
+yarn dev download 2501
+
+# Descompactar um arquivo para um diretório
+yarn dev uncompress 2501
 ```
 
-Build e execução em produção local:
+## Boas práticas / Gates de qualidade
 
-```bash
-npm run build
-npm run start
-```
+- Build: `yarn build` (deve gerar `dist/`)
+- Lint/static: `yarn check`
+- Testes: `yarn test`
 
-## Variáveis de ambiente
+## Como contribuir
 
-Este template inclui `dotenv-flow` para carregar variáveis de ambiente em `dev` e `start`. Crie arquivos `.env`, `.env.development`, `.env.test` conforme necessário.
-
-## Convenções e contribuições
-
-- Commits: a base já traz `commitizen` e `cz-conventional-changelog` para gerar mensagens de commit no formato Conventional Commits.
-- `commitlint` e `husky` são usados para reforçar políticas de commit (hooks) — é recomendável ativar `husky` localmente (`npm run prepare` já está presente no `package.json`).
-
-Se quiser contribuir:
-
-1. Fork e branch feature/bugfix.
-2. Siga o padrão de commits convencionais (p.ex. `git cz` para criar commits).
-3. Rode `npm run check` e `npm run test` antes de abrir PR.
-
-## Publicação / Releases
-
-O projeto inclui `release-it` para automatizar releases. Configure `release-it` (token de publicação e parâmetros) antes de usar `npm run release`.
-
-## Exemplos e ponto de partida
-
-O arquivo `src/index.ts` contém um exemplo mínimo:
-
-```ts
-// exemplo rápido
-console.log('Hello, world!')
-```
-
-Use este repositório como ponto de partida para bibliotecas ou microserviços pequenos. Para projetos maiores, adicione ferramentas de CI, linters/formatters mais estritos, e uma suíte de testes mais completa.
-
-## Licença
-
-MIT — consulte `package.json`.
+1. Crie uma branch de feature/bugfix
+2. Siga Conventional Commits (`git cz` pode ajudar)
+3. Rode `yarn check` e `yarn test` antes de abrir PR

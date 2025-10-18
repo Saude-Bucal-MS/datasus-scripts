@@ -1,10 +1,4 @@
 #!/usr/bin/env node
-/*
- CLI refactored to support multiple subcommands (download, carregar, ...).
-
- The `download` command reuses the existing download logic.
- The `carregar` command is a placeholder to be implemented later.
-*/
 import { Command, Option } from 'commander';
 import consola from 'consola';
 import path from 'path';
@@ -58,8 +52,8 @@ program
     consola.success(`Uncompressed PAMS${yymm}.dbc in ${destDir}`);
   });
 
-// parse and run (support async handlers)
+// parse and run commands
 program.parseAsync(process.argv).catch((err) => {
-  consola.error('Erro ao executar o comando:', err instanceof Error ? err.message : err);
+  consola.error('Error executing command:', err instanceof Error ? err.message : err);
   process.exit(1);
 });

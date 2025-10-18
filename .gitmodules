@@ -1,6 +1,4 @@
 [submodule "deps/blast-dbf"]
 	path = deps/blast-dbf
 	url = https://github.com/eaglebh/blast-dbf.git
-[submodule "third_party/blast-dbf"]
-	path = deps/blast-dbf
-	url = https://github.com/eaglebh/blast-dbf.git
+  	ignore = all
