@@ -14,13 +14,18 @@
     "prepare": "husky || true",
     "build": "tsc && tsc-alias",
     "dev": "tsx  -r \"dotenv-flow/config\" src/index.ts",
+    "cli": "tsx -r \"dotenv-flow/config\" src/cli.ts",
     "start": "node -r \"dotenv-flow/config\" dist/index.js",
     "test": "vitest run ./src",
     "test:coverage": "vitest run ./src --coverage",
     "verify": "run-s check test build",
     "release": "release-it"
   },
-  "dependencies": {},
+  "dependencies": {
+    "basic-ftp": "^5.0.5",
+    "commander": "^14.0.1",
+    "consola": "3.4.2"
+  },
   "devDependencies": {
     "@biomejs/biome": "2.2.4",
     "@commitlint/cli": "^19.8.1",
