@@ -26,14 +26,9 @@ program
 
     const destDir = path.resolve(process.cwd(), options.workdir);
 
-    try {
-      consola.start(`Downloading PAMS${yymm}.dbc to ${destDir}...`);
-      await download(`PAMS${yymm}.dbc`, destDir);
-      consola.success(`Downloaded PAMS${yymm}.dbc to ${destDir}`);
-    } catch (err) {
-      consola.error('Error downloading file:', err instanceof Error ? err.message : err);
-      process.exit(1);
-    }
+    consola.start(`Downloading PAMS${yymm}.dbc to ${destDir}...`);
+    await download(`PAMS${yymm}.dbc`, destDir);
+    consola.success(`Downloaded PAMS${yymm}.dbc to ${destDir}`);
   });
 
 // uncompress command (TODO)
