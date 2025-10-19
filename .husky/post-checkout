@@ -1,0 +1,1 @@
+(cd deps && cd blast-dbf && make)
