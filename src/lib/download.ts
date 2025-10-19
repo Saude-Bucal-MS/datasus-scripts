@@ -1,7 +1,7 @@
 import { Client as FtpClient } from 'basic-ftp';
 import path from 'path';
 import { FileAlreadyExistsError } from '../utils/errors.js';
-import { ensureDir, fileExists } from '../utils/fs.js';
+import { fileExists } from '../utils/fs.js';
 
 /**
  * Downloads a file from the FTP server.
@@ -20,8 +20,6 @@ export async function download(
   if (fileExists(filepath) && !opts?.override) {
     throw new FileAlreadyExistsError(`File already exists: ${filepath}`);
   }
-
-  ensureDir(destDir);
 
   const ftpClient = new FtpClient();
 

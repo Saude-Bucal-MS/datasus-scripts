@@ -5,7 +5,7 @@ import {
   FileAlreadyExistsError,
   FileNotFoundError,
 } from '../utils/errors.js';
-import { ensureDir, fileExists } from '../utils/fs.js';
+import { fileExists } from '../utils/fs.js';
 
 export type UncompressOptions = {
   destDir?: string;
@@ -36,8 +36,6 @@ export async function uncompress(filepath: string, opts?: UncompressOptions): Pr
       `blast-dbf executable not found at ${blastDbfDir}. Please ensure it is built and available.`,
     );
   }
-
-  ensureDir(finalDestDir);
 
   await new Promise<void>((resolve, reject) =>
     exec(`${blastDbfDir} ${filepath} ${destPath}`, (error) =>

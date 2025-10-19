@@ -2,16 +2,16 @@
 import { Command, Option } from 'commander';
 import consola from 'consola';
 import path from 'path';
-import { knex } from './knex.js';
+import { dirSync } from 'tmp';
 import { download } from './lib/download.js';
-import { load } from './lib/load.js';
+import { transform } from './lib/transform.js';
 import { uncompress } from './lib/uncompress.js';
-import env from './utils/env.js';
 import {
   DataAlreadyExistsError,
   FileAlreadyExistsError,
   InvalidPAUFYYMMError,
 } from './utils/errors.js';
+import { fileExists, mvFile } from './utils/fs.js';
 
 function checkPAUFYYMM(PAUFYYMM: string): void {
   const match = /^PA([A-Z]{2})(\d{2})(\d{2})$/.exec(PAUFYYMM);
@@ -25,19 +25,33 @@ function checkPAUFYYMM(PAUFYYMM: string): void {
   }
 }
 
-async function etl(PAUFYYMM: string, opts: { workdir: string; override?: boolean }) {
+async function exec(
+  PAUFYYMM: string,
+  opts: { workdir: string; override?: boolean; keepFiles?: boolean },
+): Promise<void> {
   consola.start(`Starting ETL process for ${PAUFYYMM}...`);
   checkPAUFYYMM(PAUFYYMM);
 
-  const destDir = path.resolve(process.cwd(), opts.workdir);
+  const tmpDir = dirSync({ prefix: 'datasus-', unsafeCleanup: true });
+
   process.stdout?.write('\n');
-  consola.info(`Using workdir: ${destDir}`);
+  consola.info(`Using workdir: ${opts.workdir}`);
   consola.info(`Using override: ${opts.override}`);
+  consola.info(`Using keep-files: ${opts.keepFiles}`);
+  consola.info(`Using temp dir: ${tmpDir.name}`);
   process.stdout?.write('\n');
+
+  const destDir = path.resolve(process.cwd(), opts.workdir);
+  const tmpDestDir = path.resolve(process.cwd(), tmpDir.name);
+
+  if (fileExists(path.resolve(destDir, `${PAUFYYMM}.sqlite`)) && !opts.override) {
+    consola.warn(`> SQLite database for ${PAUFYYMM} already exists. Skipping ETL process.`);
+    return;
+  }
 
   try {
     consola.info(`Downloading ${PAUFYYMM}.dbc...`);
-    await download(`${PAUFYYMM}.dbc`, destDir, { override: opts.override });
+    await download(`${PAUFYYMM}.dbc`, tmpDestDir, { override: opts.override });
     consola.info(`> download finished.`);
   } catch (error) {
     if (error instanceof FileAlreadyExistsError) {
@@ -49,10 +63,7 @@ async function etl(PAUFYYMM: string, opts: { workdir: string; override?: boolean
 
   try {
     consola.info(`Uncompressing ${PAUFYYMM}.dbc...`);
-    await uncompress(path.resolve(destDir, `${PAUFYYMM}.dbc`), {
-      destDir,
-      override: opts.override,
-    });
+    await uncompress(path.resolve(tmpDestDir, `${PAUFYYMM}.dbc`), { override: opts.override });
     consola.info(`> uncompress finished.`);
   } catch (error) {
     if (error instanceof FileAlreadyExistsError) {
@@ -63,16 +74,28 @@ async function etl(PAUFYYMM: string, opts: { workdir: string; override?: boolean
   }
 
   try {
-    consola.info(`Loading data from ${PAUFYYMM}.dbf into database...`);
-    await load(path.resolve(destDir, `${PAUFYYMM}.dbf`), { override: opts.override });
-    consola.info(`> load finished.`);
+    consola.info(`Transforming ${PAUFYYMM}.dbf into a sqlite database...`);
+    await transform(path.resolve(tmpDestDir, `${PAUFYYMM}.dbf`), { override: opts.override });
+    consola.info(`> transform finished.`);
   } catch (error) {
     if (error instanceof DataAlreadyExistsError) {
-      consola.warn('> .dbf file already loaded into database. Skipping load step.');
+      consola.warn('> .dbf file already transformed. Skipping load step.');
     } else {
       throw error;
     }
   }
+
+  mvFile(
+    path.resolve(tmpDestDir, `${PAUFYYMM}.sqlite`),
+    path.resolve(destDir, `${PAUFYYMM}.sqlite`),
+  );
+
+  if (opts.keepFiles) {
+    mvFile(path.resolve(tmpDestDir, `${PAUFYYMM}.dbc`), path.resolve(destDir, `${PAUFYYMM}.dbc`));
+    mvFile(path.resolve(tmpDestDir, `${PAUFYYMM}.dbf`), path.resolve(destDir, `${PAUFYYMM}.dbf`));
+  }
+
+  tmpDir.removeCallback();
 
   consola.success(`ETL process completed successfully for ${PAUFYYMM}.`);
 }
@@ -83,72 +106,24 @@ const program = new Command()
   .description('Utilities to work with DATASUS SIASUS files')
   .configureHelp({ showGlobalOptions: true })
   .addOption(
-    new Option('--workdir <dir>', 'working directory').default(env.PET_WORKDIR).env('PET_WORKDIR'),
+    new Option('--workdir <dir>', 'working directory').default('./data').env('PET_WORKDIR'),
   )
-  .addOption(new Option('--override', 'overwrite current data').default(false));
+  .addOption(new Option('--override', 'overwrite current data').default(false))
+  .addOption(new Option('--keep-files', 'keep intermediate files').default(false));
 
-// download command
+// single command
 program
-  .command('download <PAUFYYMM>')
-  .description('Download a DATASUS SIASUS .dbc file given a PAUFYYMM (e.g. PAMS2501)')
-
+  .command('single <PAUFYYMM>', { isDefault: true })
+  .description('Download, uncompress and transform a single PAUFYYMM file')
   .action(async (PAUFYYMM: string, _, cmd) => {
-    checkPAUFYYMM(PAUFYYMM);
-
-    const { override, workdir } = cmd.optsWithGlobals();
-
-    const destDir = path.resolve(process.cwd(), workdir);
-
-    consola.start(`Downloading ${PAUFYYMM}.dbc to ${destDir}...`);
-    await download(`${PAUFYYMM}.dbc`, destDir, { override });
-    consola.success(`Downloaded ${PAUFYYMM}.dbc to ${destDir}`);
+    consola.box('Steps: Download -> Uncompress -> Transform');
+    await exec(PAUFYYMM, cmd.optsWithGlobals());
   });
 
-// uncompress command
+// period command
 program
-  .command('uncompress <PAUFYYMM>')
-  .description('Uncompress .dbc file (.dbc file should be downloaded)')
-  .action(async (PAUFYYMM: string, _, cmd) => {
-    checkPAUFYYMM(PAUFYYMM);
-
-    const { override, workdir } = cmd.optsWithGlobals();
-
-    const destDir = path.resolve(process.cwd(), workdir);
-
-    consola.start(`Uncompressing ${PAUFYYMM}.dbc in ${destDir}...`);
-    await uncompress(path.resolve(destDir, `${PAUFYYMM}.dbc`), { destDir, override });
-    consola.success(`Uncompressed ${PAUFYYMM}.dbc in ${destDir}`);
-  });
-
-// load command
-program
-  .command('load <PAUFYYMM>')
-  .description('Load data from .dbc file into database (.dbc file should be uncompressed)')
-  .action(async (PAUFYYMM: string, _, cmd) => {
-    checkPAUFYYMM(PAUFYYMM);
-
-    const { override, workdir } = cmd.optsWithGlobals();
-
-    const destDir = path.resolve(process.cwd(), workdir);
-
-    consola.start(`Loading data from ${PAUFYYMM}.dbf into database...`);
-    await load(path.resolve(destDir, `${PAUFYYMM}.dbf`), { override });
-    consola.success(`Loaded data from ${PAUFYYMM}.dbf`);
-  });
-
-// etl command
-program
-  .command('etl <PAUFYYMM>', { isDefault: true })
-  .description('Extract, Transform, Load data into database')
-  .action(async (PAUFYYMM: string, _, cmd) => {
-    consola.box('ETL Process Steps: Download -> Uncompress -> Load');
-    await etl(PAUFYYMM, cmd.optsWithGlobals());
-  });
-
-// etl:period command
-program
-  .command('etl:period', { isDefault: true })
-  .description('Extract, Transform, Load data into database')
+  .command('period', { isDefault: true })
+  .description('Download, uncompress and transform PAUFYYMM files in a given period')
   .addOption(
     new Option('--prefix <PAUF>', 'prefix for PAUFYYMM').default('PAMS').argParser((value) => {
       if (!/^PA[A-Z]{2}$/.test(value)) {
@@ -158,22 +133,29 @@ program
     }),
   )
   .addOption(
-    new Option('--since <YYYYMM>', 'start date').default('200801').argParser((value) => {
-      if (!/^\d{6}$/.test(value)) {
-        throw new Error('Invalid since date. Use format YYYYMM (e.g. 200801)');
-      }
-      return value;
-    }),
+    new Option('--since <YYYYMM>', 'start date')
+      .default(`${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, '0')}`)
+      .argParser((value) => {
+        if (!/^\d{6}$/.test(value)) {
+          throw new Error('Invalid since date. Use format YYYYMM (e.g. 200801)');
+        }
+        return value;
+      }),
   )
   .addOption(
-    new Option('--until <YYYYMM>', 'end date').default(
-      `${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, '0')}`,
-    ),
+    new Option('--until <YYYYMM>', 'end date')
+      .default(`${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, '0')}`)
+      .argParser((value) => {
+        if (!/^\d{6}$/.test(value)) {
+          throw new Error('Invalid since date. Use format YYYYMM (e.g. 200801)');
+        }
+        return value;
+      }),
   )
   .action(async (_, cmd) => {
-    consola.box('ETL Process Steps: Download -> Uncompress -> Load');
+    consola.box('Steps: Download -> Uncompress -> Transform');
 
-    const { prefix, since, until, workdir, override } = cmd.optsWithGlobals();
+    const { prefix, since, until, ...etlOpts } = cmd.optsWithGlobals();
 
     const inc = (YYYYMM: string): string => {
       let year = parseInt(YYYYMM.slice(0, 4), 10);
@@ -192,15 +174,12 @@ program
       const YY = date.slice(2, 4);
       const MM = date.slice(4, 6);
       const PAUFYYMM = `${prefix}${YY}${MM}`;
-      await etl(PAUFYYMM, { workdir, override });
+      await exec(PAUFYYMM, etlOpts);
     }
   });
 
 // parse and run commands
-program
-  .parseAsync(process.argv)
-  .catch((err) => {
-    consola.error('Error executing command:', err instanceof Error ? err.message : err);
-    process.exit(1);
-  })
-  .finally(() => knex.destroy());
+program.parseAsync(process.argv).catch((err) => {
+  consola.error('Error executing command:', err instanceof Error ? err.message : err);
+  process.exit(1);
+});

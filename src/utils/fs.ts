@@ -1,4 +1,6 @@
-import { accessSync, constants, mkdirSync } from 'fs';
+import { accessSync, constants, mkdirSync, renameSync, rmSync } from 'fs';
+import { dirname } from 'path';
+import { FileNotFoundError } from './errors.js';
 
 /**
  * Ensures that a directory exists.
@@ -20,4 +22,30 @@ export function fileExists(filePath: string) {
   } catch {
     return false;
   }
+}
+
+export function rmFile(filePath: string) {
+  try {
+    accessSync(filePath, constants.F_OK | constants.R_OK | constants.W_OK);
+  } catch {
+    throw new FileNotFoundError(`File not found: ${filePath}`);
+  }
+
+  rmSync(filePath);
+}
+
+export function mvFile(srcPath: string, destPath: string) {
+  try {
+    accessSync(srcPath, constants.F_OK | constants.R_OK | constants.W_OK);
+  } catch {
+    throw new FileNotFoundError(`File not found: ${srcPath}`);
+  }
+
+  try {
+    accessSync(dirname(destPath), constants.F_OK | constants.R_OK | constants.W_OK);
+  } catch {
+    throw new FileNotFoundError(`Directory not found: ${destPath}`);
+  }
+
+  renameSync(srcPath, destPath);
 }
