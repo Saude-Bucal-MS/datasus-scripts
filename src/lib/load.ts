@@ -2,36 +2,36 @@
 import { DBFFile } from 'dbffile';
 import path from 'node:path';
 import { knex } from '../knex.js';
+import env from '../utils/env.js';
+import { DataAlreadyExistsError, FileNotFoundError } from '../utils/errors.js';
 import { fileExists } from '../utils/fs.js';
 
-export type StoreOptions = {
-  override?: boolean;
-};
-
 /**
- * Stores data from a .dbf file into a postgres database.
+ * Loads data from a .dbf file into a postgres database.
  * @param filepath The path to the .dbc file.
  * @param opts Storage options.
  */
-export async function store(filepath: string, opts?: StoreOptions): Promise<void> {
+export async function load(filepath: string, opts?: { override?: boolean }): Promise<void> {
+  const tableName = path.basename(filepath).slice(0, -4);
+
   if (!fileExists(filepath)) {
-    throw new Error(`File not found: ${filepath}`);
+    throw new FileNotFoundError(`File not found: ${filepath}`);
   }
 
-  await knex.schema.createSchemaIfNotExists('siasus_data');
-
   await knex.transaction(async (trx) => {
-    const tableName = path.basename(filepath).slice(0, -4);
+    await trx.schema.createSchemaIfNotExists(env.PET_SCHEMA);
 
-    if (await trx.schema.withSchema('siasus_data').hasTable(tableName)) {
+    if (await trx.schema.withSchema(env.PET_SCHEMA).hasTable(tableName)) {
       if (opts?.override) {
-        await trx.schema.withSchema('siasus_data').dropTable(tableName);
+        await trx.schema.withSchema(env.PET_SCHEMA).dropTable(tableName);
       } else {
-        throw new Error(`Table ${tableName} already exists. Use override option to replace it.`);
+        throw new DataAlreadyExistsError(
+          `Table ${tableName} already exists. Use override option to replace it.`,
+        );
       }
     }
 
-    await trx.schema.withSchema('siasus_data').createTable(tableName, (table) => {
+    await trx.schema.withSchema(env.PET_SCHEMA).createTable(tableName, (table) => {
       table.increments('id').primary();
       table
         .string('PA_CODUNI', 7)
@@ -168,7 +168,7 @@ export async function store(filepath: string, opts?: StoreOptions): Promise<void
     });
 
     for await (const record of await DBFFile.open(filepath)) {
-      await trx.withSchema('siasus_data').table(tableName).insert(record);
+      await trx.withSchema(env.PET_SCHEMA).table(tableName).insert(record);
     }
   });
 }

@@ -1,10 +1,7 @@
 import { Client as FtpClient } from 'basic-ftp';
 import path from 'path';
+import { FileAlreadyExistsError } from '../utils/errors.js';
 import { ensureDir, fileExists } from '../utils/fs.js';
-
-export type DownloadOptions = {
-  override?: boolean;
-};
 
 /**
  * Downloads a file from the FTP server.
@@ -16,12 +13,12 @@ export type DownloadOptions = {
 export async function download(
   filename: string,
   destDir: string,
-  opts?: DownloadOptions,
+  opts?: { override?: boolean },
 ): Promise<string> {
   const filepath = path.join(destDir, filename);
 
   if (fileExists(filepath) && !opts?.override) {
-    throw new Error(`File already exists: ${filepath}`);
+    throw new FileAlreadyExistsError(`File already exists: ${filepath}`);
   }
 
   ensureDir(destDir);
