@@ -1,5 +1,22 @@
 # Changelog
 
+## 1.0.0 (2025-10-20)
+
+* adiciona dockerfile e ajusta codigo ([7e333eb](https://github.com/Saude-Bucal-MS/datasus-scripts/commit/7e333eb81ba328fc178d2cdc7819b50540bf7ac2))
+* adiciona hook para build das deps ([e587e36](https://github.com/Saude-Bucal-MS/datasus-scripts/commit/e587e36ea96f4fa53bcdd63418aba69eb91b15cd))
+* adiciona informação de env ao cli ([109ef68](https://github.com/Saude-Bucal-MS/datasus-scripts/commit/109ef686ad0e5cb05d55457bb76a687634fcb6f6))
+* adiciona script etl para periodo e realiza melhorias ([bd17ff2](https://github.com/Saude-Bucal-MS/datasus-scripts/commit/bd17ff207a12af3062892dfc26b1b74f81f89bf6))
+* adiciona scripts para download e descompressao ([d3e968f](https://github.com/Saude-Bucal-MS/datasus-scripts/commit/d3e968ff7ed0bed2490d21029031c94f2d95367f))
+* adiciona workflow para publicação no ghrc ([369bb11](https://github.com/Saude-Bucal-MS/datasus-scripts/commit/369bb11aa50609150d5268b9f143dac4b80d5abb))
+* adiciona zod para gestão de variaveis de ambiente ([7279a75](https://github.com/Saude-Bucal-MS/datasus-scripts/commit/7279a75e87e161e1023cb5db41d5bd20b4c801b7))
+* ajusta projeto para usar sqlite e ajusta cli ([4c9a62b](https://github.com/Saude-Bucal-MS/datasus-scripts/commit/4c9a62b6e4403581eaf47b45d9b6fb028b43d49d))
+* aplica algumas refatorações e melhorias na estrutura ([9e06ee4](https://github.com/Saude-Bucal-MS/datasus-scripts/commit/9e06ee4cf439a032bae7938b514764e51eb9978f))
+* corrige parametros padroes ([80432a6](https://github.com/Saude-Bucal-MS/datasus-scripts/commit/80432a69d4fd431722bf9da0e6d3b41eb7ff8487))
+* ignora ordenação temporariamente ([a3ce031](https://github.com/Saude-Bucal-MS/datasus-scripts/commit/a3ce03175635c5c3e5b21baab6af26c9921ae8ee))
+* permite processamento paralelo ([430de43](https://github.com/Saude-Bucal-MS/datasus-scripts/commit/430de43d3174729f314a05a6f286d2f22580781c))
+* **submodule:** add blast-dbf to third_party/blast-dbf ([c32b380](https://github.com/Saude-Bucal-MS/datasus-scripts/commit/c32b380066f00dc179a57de7e4f5da6d3172ca65))
+* **submodule:** rename third_party to deps for blast-dbf ([1e818d5](https://github.com/Saude-Bucal-MS/datasus-scripts/commit/1e818d580711dc6815658b0e0280d855d6e8248b))
+
 ## [1.0.2](https://github.com/hsborges/ts-repo-template/compare/v1.0.1...v1.0.2) (2025-09-11)
 
 * força uso de ponto e virgula ao final ([117fdfe](https://github.com/hsborges/ts-repo-template/commit/117fdfea205a2787e4c19b302dd9b1fc6defabff))
