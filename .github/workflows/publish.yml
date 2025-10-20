@@ -42,7 +42,9 @@ jobs:
           INPUT_TAG: ${{ github.event.inputs.tag }}
         run: |
           set -euo pipefail
-          IMAGE="ghcr.io/${REPO}"
+          # ensure repository path is lowercase (ghcr requires lowercase names)
+          REPO_LOWER=$(echo "${REPO}" | tr '[:upper:]' '[:lower:]')
+          IMAGE="ghcr.io/${REPO_LOWER}"
           TAG=""
 
           # Prefer explicit input (manual run). The input is required for manual runs.
