@@ -11,7 +11,7 @@ import {
   FileAlreadyExistsError,
   InvalidPAUFYYMMError,
 } from './utils/errors.js';
-import { fileExists, mvFile } from './utils/fs.js';
+import { ensureDir, fileExists, mvFile } from './utils/fs.js';
 
 function checkPAUFYYMM(PAUFYYMM: string): void {
   const match = /^PA([A-Z]{2})(\d{2})(\d{2})$/.exec(PAUFYYMM);
@@ -84,6 +84,8 @@ async function exec(
       throw error;
     }
   }
+
+  ensureDir(destDir);
 
   mvFile(
     path.resolve(tmpDestDir, `${PAUFYYMM}.sqlite`),

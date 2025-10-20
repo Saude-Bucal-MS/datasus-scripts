@@ -1,4 +1,4 @@
-import { exec } from 'node:child_process';
+import { execFileSync } from 'node:child_process';
 import path from 'node:path';
 import {
   BlastDbfNotFoundError,
@@ -37,11 +37,7 @@ export async function uncompress(filepath: string, opts?: UncompressOptions): Pr
     );
   }
 
-  await new Promise<void>((resolve, reject) =>
-    exec(`${blastDbfDir} ${filepath} ${destPath}`, (error) =>
-      error ? reject(new Error(`Failed to uncompress file: ${error.message}`)) : resolve(),
-    ),
-  );
+  execFileSync(blastDbfDir, [filepath, destPath], { stdio: 'ignore', shell: true });
 
   return destPath;
 }

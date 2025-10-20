@@ -1,4 +1,4 @@
-import { accessSync, constants, mkdirSync, renameSync, rmSync } from 'fs';
+import { accessSync, constants, copyFileSync, mkdirSync, rmSync } from 'fs';
 import { dirname } from 'path';
 import { FileNotFoundError } from './errors.js';
 
@@ -43,9 +43,13 @@ export function mvFile(srcPath: string, destPath: string) {
 
   try {
     accessSync(dirname(destPath), constants.F_OK | constants.R_OK | constants.W_OK);
-  } catch {
-    throw new FileNotFoundError(`Directory not found: ${destPath}`);
+  } catch (err) {
+    throw new FileNotFoundError(
+      `Directory not found: ${dirname(destPath)} (${(err as Error).message})`,
+    );
   }
 
-  renameSync(srcPath, destPath);
+  if (fileExists(destPath)) rmFile(destPath);
+  copyFileSync(srcPath, destPath);
+  rmFile(srcPath);
 }

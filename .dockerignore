@@ -1,0 +1,9 @@
+.husky
+.vscode
+.data
+dist
+node_modules
+.env
+Dockerfile
+README.md
+yarn.lock
