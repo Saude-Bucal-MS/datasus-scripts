@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { Command, Option } from 'commander';
 import consola from 'consola';
+import PQueue from 'p-queue';
 import path from 'path';
 import { dirSync } from 'tmp';
 import { download } from './lib/download.js';
@@ -119,7 +120,11 @@ program
   .description('Download, uncompress and transform a single PAUFYYMM file')
   .action(async (PAUFYYMM: string, _, cmd) => {
     consola.box('Steps: Download -> Uncompress -> Transform');
-    await exec(PAUFYYMM, cmd.optsWithGlobals());
+    await exec(PAUFYYMM, cmd.optsWithGlobals()).catch((err) => {
+      if (err.code === 550)
+        return consola.warn(`Data for ${PAUFYYMM} not found on server. Skipping.`);
+      throw err;
+    });
   });
 
 // period command
@@ -154,10 +159,21 @@ program
         return value;
       }),
   )
+  .addOption(
+    new Option('--concurrency <number>', 'number of concurrent downloads')
+      .default(1)
+      .argParser((value) => {
+        const parsed = parseInt(value, 10);
+        if (isNaN(parsed) || parsed < 1) {
+          throw new Error('Concurrency must be a positive integer.');
+        }
+        return parsed;
+      }),
+  )
   .action(async (_, cmd) => {
     consola.box('Steps: Download -> Uncompress -> Transform');
 
-    const { prefix, since, until, ...etlOpts } = cmd.optsWithGlobals();
+    const { prefix, since, until, concurrency, ...etlOpts } = cmd.optsWithGlobals();
 
     const inc = (YYYYMM: string): string => {
       let year = parseInt(YYYYMM.slice(0, 4), 10);
@@ -172,16 +188,31 @@ program
       return `${year}${String(month).padStart(2, '0')}`;
     };
 
+    const queue = new PQueue({ concurrency });
+
     for (let date = since; date <= until; date = inc(date)) {
       const YY = date.slice(2, 4);
       const MM = date.slice(4, 6);
       const PAUFYYMM = `${prefix}${YY}${MM}`;
-      await exec(PAUFYYMM, etlOpts);
+      queue.add(() =>
+        exec(PAUFYYMM, etlOpts).catch((err) => {
+          if (err.code === 550)
+            return consola.warn(`Data for ${PAUFYYMM} not found on server. Skipping.`);
+          throw err;
+        }),
+      );
     }
+
+    await queue.onIdle();
+
+    consola.success('ETL process completed successfully for all files in the given period.');
   });
 
 // parse and run commands
-program.parseAsync(process.argv).catch((err) => {
-  consola.error('Error executing command:', err instanceof Error ? err.message : err);
-  process.exit(1);
-});
+program
+  .parseAsync(process.argv)
+  .then(() => process.exit(0))
+  .catch((err) => {
+    consola.error('Error executing command:', err instanceof Error ? err.message : err);
+    process.exit(1);
+  });
