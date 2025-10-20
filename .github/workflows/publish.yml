@@ -66,9 +66,11 @@ jobs:
           if [[ "${IS_RELEASE}" == "true" ]]; then
             # release: include the supplied/tag name, the short sha and latest
             TAGS_JSON=$(printf '["%s:%s","%s:%s","%s:latest"]' "${IMAGE}" "${TAG}" "${IMAGE}" "${SHORT_SHA}" "${IMAGE}" )
+            TAGS_CLI=$(printf '-t %s:%s -t %s:%s -t %s:latest' "${IMAGE}" "${TAG}" "${IMAGE}" "${SHORT_SHA}" "${IMAGE}")
           else
             # non-release: only publish immutable short sha
             TAGS_JSON=$(printf '["%s:%s"]' "${IMAGE}" "${SHORT_SHA}")
+            TAGS_CLI=$(printf '-t %s:%s' "${IMAGE}" "${SHORT_SHA}")
           fi
 
           echo "image=${IMAGE}" >> $GITHUB_OUTPUT
@@ -76,11 +78,12 @@ jobs:
           echo "short_sha=${SHORT_SHA}" >> $GITHUB_OUTPUT
           echo "is_release=${IS_RELEASE}" >> $GITHUB_OUTPUT
           echo "tags_json=${TAGS_JSON}" >> $GITHUB_OUTPUT
+          echo "tags_cli=${TAGS_CLI}" >> $GITHUB_OUTPUT
 
       - name: Build and push image
-        uses: docker/build-push-action@v4
-        with:
-          context: .
-          file: ./Dockerfile
-          push: true
-          tags: ${{ fromJson(steps.meta.outputs.tags_json) }}
+        env:
+          TAGS_CLI: ${{ steps.meta.outputs.tags_cli }}
+        run: |
+          set -euo pipefail
+          echo "Building and pushing with tags: ${TAGS_CLI}"
+          docker buildx build --push ${TAGS_CLI} -f ./Dockerfile .
