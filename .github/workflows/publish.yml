@@ -7,8 +7,8 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "Tag to publish (ex: v1.2.3). If empty, short SHA will be used."
-        required: false
+        description: "Tag to publish (ex: v1.2.3). Required when running workflow manually."
+        required: true
 
 jobs:
   build-and-publish:
@@ -39,51 +39,29 @@ jobs:
         env:
           REPO: ${{ github.repository }}
           REF: ${{ github.ref }}
-          SHA: ${{ github.sha }}
           INPUT_TAG: ${{ github.event.inputs.tag }}
         run: |
           set -euo pipefail
           IMAGE="ghcr.io/${REPO}"
-          SHORT_SHA=${SHA::7}
           TAG=""
-          IS_RELEASE=false
 
-          # 1) explicit input (manual run)
+          # Prefer explicit input (manual run). The input is required for manual runs.
           if [[ -n "${INPUT_TAG:-}" ]]; then
             TAG="${INPUT_TAG}"
-            IS_RELEASE=true
-          # 2) tag push
           elif [[ "${REF}" == refs/tags/* ]]; then
             TAG=${REF#refs/tags/}
-            IS_RELEASE=true
           else
-            # fallback to immutable short sha
-            TAG="${SHORT_SHA}"
-            IS_RELEASE=false
-          fi
-
-          # Build tags list (JSON array). Always include immutable short-sha tag.
-          if [[ "${IS_RELEASE}" == "true" ]]; then
-            # release: include the supplied/tag name, the short sha and latest
-            TAGS_JSON=$(printf '["%s:%s","%s:%s","%s:latest"]' "${IMAGE}" "${TAG}" "${IMAGE}" "${SHORT_SHA}" "${IMAGE}" )
-            TAGS_CLI=$(printf '-t %s:%s -t %s:%s -t %s:latest' "${IMAGE}" "${TAG}" "${IMAGE}" "${SHORT_SHA}" "${IMAGE}")
-          else
-            # non-release: only publish immutable short sha
-            TAGS_JSON=$(printf '["%s:%s"]' "${IMAGE}" "${SHORT_SHA}")
-            TAGS_CLI=$(printf '-t %s:%s' "${IMAGE}" "${SHORT_SHA}")
+            echo "No tag provided via workflow input and this is not a tag push. Aborting." >&2
+            exit 1
           fi
 
           echo "image=${IMAGE}" >> $GITHUB_OUTPUT
           echo "tag=${TAG}" >> $GITHUB_OUTPUT
-          echo "short_sha=${SHORT_SHA}" >> $GITHUB_OUTPUT
-          echo "is_release=${IS_RELEASE}" >> $GITHUB_OUTPUT
-          echo "tags_json=${TAGS_JSON}" >> $GITHUB_OUTPUT
-          echo "tags_cli=${TAGS_CLI}" >> $GITHUB_OUTPUT
 
       - name: Build and push image
-        env:
-          TAGS_CLI: ${{ steps.meta.outputs.tags_cli }}
         run: |
           set -euo pipefail
-          echo "Building and pushing with tags: ${TAGS_CLI}"
-          docker buildx build --push ${TAGS_CLI} -f ./Dockerfile .
+          IMAGE=${{ steps.meta.outputs.image }}
+          TAG=${{ steps.meta.outputs.tag }}
+          echo "Building and pushing ${IMAGE}:${TAG}"
+          docker buildx build --push -t ${IMAGE}:${TAG} -f ./Dockerfile .
