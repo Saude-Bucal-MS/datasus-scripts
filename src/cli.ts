@@ -169,7 +169,7 @@ program
     new Option('--prefix <PAUF|POPSBR>', 'prefix for <PAUFYYMM|POPSBRYY>')
       .default('PAMS')
       .argParser((value) => {
-        if (!/^PA[A-Z]{2}|POPSBR$/g.test(value))
+        if (!/^(PA[A-Z]{2}|POPSBR)$/.test(value))
           throw new Error('Invalid prefix. Use PAUF or POPSBR.');
         return value;
       }),
