@@ -13,14 +13,14 @@ export const unzip: UnzipFn = async (zippath, destpath): Promise<void> => {
 unzip.single = (zippath, filename, destpath) => {
   return new Promise<void>((resolve, reject) => {
     yauzl.open(zippath, { lazyEntries: true }, (err, zipfile) => {
-      if (err) throw err;
+      if (err) return reject(err);
 
       zipfile.readEntry();
 
       zipfile.on('entry', (entry) => {
         if (entry.fileName.toLowerCase() === filename.toLowerCase()) {
           zipfile.openReadStream(entry, (err, readStream) => {
-            if (err) throw err;
+            if (err) return reject(err);
             readStream.pipe(fs.createWriteStream(destpath));
             readStream.on('end', () => zipfile.close());
           });
