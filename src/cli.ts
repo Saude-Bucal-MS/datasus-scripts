@@ -230,7 +230,7 @@ program
       const MM = date.slice(4, 6);
 
       let pattern!: string;
-      if (prefix === 'PAMS') pattern = `${prefix}${YY}${MM}`;
+      if (prefix.startsWith('PA')) pattern = `${prefix}${YY}${MM}`;
       else if (prefix === 'POPSBR') pattern = `${prefix}${YY}`;
       else throw new Error(`Invalid prefix: ${prefix}`);
 
