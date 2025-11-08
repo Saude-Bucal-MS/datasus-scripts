@@ -1,6 +1,6 @@
 .husky
 .vscode
-.data
+data
 dist
 node_modules
 .env
