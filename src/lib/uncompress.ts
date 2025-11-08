@@ -1,28 +1,24 @@
 import { execFileSync } from 'node:child_process';
 import path from 'node:path';
-import {
-  BlastDbfNotFoundError,
-  FileAlreadyExistsError,
-  FileNotFoundError,
-} from '../utils/errors.js';
+import { BlastDbfNotFoundError, FileAlreadyExistsError } from '../utils/errors.js';
 import { fileExists } from '../utils/fs.js';
-
-export type UncompressOptions = {
-  destDir?: string;
-  override?: boolean;
-};
+import { unzip } from '../utils/unzip.js';
 
 /**
- * Uncompresses a .dbc file to a .dbf file.
- * @param filepath The path to the .dbc file.
+ * Uncompresses a file.
+ * @param filepath The path to the file.
  * @param opts Options for uncompressing.
- * @returns The path to the uncompressed .dbf file.
+ * @returns The path to the uncompressed file.
  */
-export async function uncompress(filepath: string, opts?: UncompressOptions): Promise<string> {
-  if (!fileExists(filepath)) {
-    throw new FileNotFoundError(`File not found: ${filepath}`);
-  }
+export type UncompressFn = (
+  filepath: string,
+  opts?: { destDir?: string; override?: boolean },
+) => Promise<string>;
 
+/**
+ * Uncompresses a .dbc file using blast-dbf.
+ */
+export const uncompressDBC: UncompressFn = async (filepath, opts) => {
   const finalDestDir = opts?.destDir || path.dirname(filepath);
   const destPath = path.join(finalDestDir, path.basename(filepath).replace(/\.dbc$/i, '.dbf'));
 
@@ -40,4 +36,21 @@ export async function uncompress(filepath: string, opts?: UncompressOptions): Pr
   execFileSync(blastDbfDir, [filepath, destPath], { stdio: 'ignore', shell: true });
 
   return destPath;
-}
+};
+
+/**
+ * Uncompresses a .zip file using unzip.
+ */
+export const uncompressPopZIP: UncompressFn = async (filepath, opts) => {
+  const finalDestDir = opts?.destDir || path.dirname(filepath);
+  const destPath = path.join(finalDestDir, `${path.basename(filepath, '.zip')}.dbf`);
+
+  if (fileExists(destPath) && !opts?.override) {
+    throw new FileAlreadyExistsError(`Uncompressed file already exists: ${destPath}`);
+  }
+
+  const filename = path.basename(filepath, '.zip').replace('SBR', '').concat('.dbf');
+  await unzip.single(filepath, filename, destPath);
+
+  return destPath;
+};

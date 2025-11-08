@@ -5,6 +5,13 @@ export class FileAlreadyExistsError extends Error {
   }
 }
 
+export class UnsupportedFileTypeError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'UnsupportedFileTypeError';
+  }
+}
+
 export class FileNotFoundError extends Error {
   constructor(message: string) {
     super(message);
@@ -19,10 +26,10 @@ export class DataAlreadyExistsError extends Error {
   }
 }
 
-export class InvalidPAUFYYMMError extends Error {
+export class InvalidPatternError extends Error {
   constructor(message: string) {
     super(message);
-    this.name = 'InvalidPAUFYYMMError';
+    this.name = 'InvalidPatternError';
   }
 }
 

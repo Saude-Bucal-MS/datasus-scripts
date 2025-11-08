@@ -1,6 +1,6 @@
 import { Client as FtpClient } from 'basic-ftp';
 import path from 'path';
-import { FileAlreadyExistsError } from '../utils/errors.js';
+import { FileAlreadyExistsError, UnsupportedFileTypeError } from '../utils/errors.js';
 import { fileExists } from '../utils/fs.js';
 
 /**
@@ -10,11 +10,14 @@ import { fileExists } from '../utils/fs.js';
  * @param opts Download options.
  * @returns The path to the downloaded file.
  */
-export async function download(
+export type DownloadFn = (
   filename: string,
   destDir: string,
   opts?: { override?: boolean },
-): Promise<string> {
+) => Promise<string>;
+
+// Implementation of the download function
+export const ftpDownloader: DownloadFn = async (filename, destDir, opts) => {
   const filepath = path.join(destDir, filename);
 
   if (fileExists(filepath) && !opts?.override) {
@@ -23,12 +26,16 @@ export async function download(
 
   const ftpClient = new FtpClient();
 
+  let remotePath = `/dissemin/publicos/`;
+
+  if (filename.startsWith('PA')) remotePath += 'SIASUS/200801_/Dados/';
+  else if (filename.startsWith('POPSBR')) remotePath += 'IBGE/POPSVS/';
+  else throw new UnsupportedFileTypeError(`Unknown file prefix: ${filename}`);
+
   await Promise.resolve()
     .then(() => ftpClient.access({ host: 'ftp.datasus.gov.br', secure: false }))
-    .then(() =>
-      ftpClient.downloadTo(filepath, `/dissemin/publicos/SIASUS/200801_/Dados/${filename}`),
-    )
+    .then(() => ftpClient.downloadTo(filepath, `${remotePath}${filename}`))
     .then(() => !ftpClient.closed && ftpClient.close());
 
   return filepath;
-}
+};
