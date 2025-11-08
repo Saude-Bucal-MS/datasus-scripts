@@ -4,34 +4,68 @@ import consola from 'consola';
 import PQueue from 'p-queue';
 import path from 'path';
 import { dirSync } from 'tmp';
-import { download } from './lib/download.js';
-import { transform } from './lib/transform.js';
-import { uncompress } from './lib/uncompress.js';
+import { DownloadFn, ftpDownloader } from './lib/download.js';
+import { TransformFn, transformPA, transformPOP } from './lib/transform.js';
+import { UncompressFn, uncompressDBC, uncompressPopZIP } from './lib/uncompress.js';
 import {
   DataAlreadyExistsError,
   FileAlreadyExistsError,
-  InvalidPAUFYYMMError,
+  InvalidPatternError,
 } from './utils/errors.js';
 import { ensureDir, fileExists, mvFile } from './utils/fs.js';
 
-function checkPAUFYYMM(PAUFYYMM: string): void {
-  const match = /^PA([A-Z]{2})(\d{2})(\d{2})$/.exec(PAUFYYMM);
+function checkFormat(pattern: string): 'PA' | 'POPSBR' | never {
+  if (pattern.startsWith('PA')) {
+    const match = /^PA([A-Z]{2})(\d{2})(\d{2})$/.exec(pattern);
 
-  if (!match) {
-    throw new InvalidPAUFYYMMError('Invalid file. Use format PAUFYYMM (e.g. PAMS2501)');
-  } else if (parseInt(match[2]) < 8) {
-    throw new InvalidPAUFYYMMError('Data before 2008 is not available for download.');
-  } else if (parseInt(match[3]) < 1 || parseInt(match[3]) > 12) {
-    throw new InvalidPAUFYYMMError('Invalid month in PAUFYYMM. Month should be between 01 and 12.');
+    if (!match) {
+      throw new InvalidPatternError('Invalid file. Use format PAUFYYMM (e.g. PAMS2501)');
+    } else if (parseInt(match[2]) < 8) {
+      throw new InvalidPatternError('Data before 2008 is not available for download.');
+    } else if (parseInt(match[3]) < 1 || parseInt(match[3]) > 12) {
+      throw new InvalidPatternError(
+        'Invalid month in PAUFYYMM. Month should be between 01 and 12.',
+      );
+    }
+    return 'PA';
+  } else if (pattern.startsWith('POPSBR')) {
+    const match = /^POPSBR(\d{2})$/.exec(pattern);
+
+    if (!match) {
+      throw new InvalidPatternError('Invalid file. Use format POPSBRYY (e.g. POPSBR25)');
+    } else if (parseInt(match[1]) < 0) {
+      throw new InvalidPatternError('Data before 2000 is not available for download.');
+    }
+    return 'POPSBR';
+  } else {
+    throw new InvalidPatternError('Invalid pattern. Use PAUFYYMM or POPSBRYY format.');
   }
 }
 
-async function exec(
-  PAUFYYMM: string,
-  opts: { workdir: string; override?: boolean; keepFiles?: boolean },
-): Promise<void> {
-  consola.start(`Starting ETL process for ${PAUFYYMM}...`);
-  checkPAUFYYMM(PAUFYYMM);
+type ExecOpts = { workdir: string; override?: boolean; keepFiles?: boolean };
+
+async function exec(pattern: string, opts: ExecOpts): Promise<void> {
+  consola.start(`Starting ETL process for ${pattern}...`);
+
+  let filename: string;
+  let downloader: DownloadFn;
+  let uncompressor: UncompressFn;
+  let transformer: TransformFn;
+
+  switch (checkFormat(pattern)) {
+    case 'PA':
+      filename = `${pattern}.dbc`;
+      downloader = ftpDownloader;
+      uncompressor = uncompressDBC;
+      transformer = transformPA;
+      break;
+    case 'POPSBR':
+      filename = `${pattern}.zip`;
+      downloader = ftpDownloader;
+      uncompressor = uncompressPopZIP;
+      transformer = transformPOP;
+      break;
+  }
 
   const tmpDir = dirSync({ prefix: 'datasus-', unsafeCleanup: true });
 
@@ -45,14 +79,15 @@ async function exec(
   const destDir = path.resolve(process.cwd(), opts.workdir);
   const tmpDestDir = path.resolve(process.cwd(), tmpDir.name);
 
-  if (fileExists(path.resolve(destDir, `${PAUFYYMM}.sqlite`)) && !opts.override) {
-    consola.warn(`> SQLite database for ${PAUFYYMM} already exists. Skipping ETL process.`);
+  if (fileExists(path.resolve(destDir, `${pattern}.sqlite`)) && !opts.override) {
+    consola.warn(`> SQLite database for ${pattern} already exists. Skipping ETL process.`);
     return;
   }
 
+  let downloadPath!: string;
   try {
-    consola.info(`Downloading ${PAUFYYMM}.dbc...`);
-    await download(`${PAUFYYMM}.dbc`, tmpDestDir, { override: opts.override });
+    consola.info(`Downloading ${pattern}.dbc...`);
+    downloadPath = await downloader(filename, tmpDestDir, { override: opts.override });
     consola.info(`> download finished.`);
   } catch (error) {
     if (error instanceof FileAlreadyExistsError) {
@@ -62,9 +97,10 @@ async function exec(
     }
   }
 
+  let uncompressPath!: string;
   try {
-    consola.info(`Uncompressing ${PAUFYYMM}.dbc...`);
-    await uncompress(path.resolve(tmpDestDir, `${PAUFYYMM}.dbc`), { override: opts.override });
+    consola.info(`Uncompressing ${pattern}.dbc...`);
+    uncompressPath = await uncompressor(downloadPath, { override: opts.override });
     consola.info(`> uncompress finished.`);
   } catch (error) {
     if (error instanceof FileAlreadyExistsError) {
@@ -74,9 +110,10 @@ async function exec(
     }
   }
 
+  let transformedPath!: string;
   try {
-    consola.info(`Transforming ${PAUFYYMM}.dbf into a sqlite database...`);
-    await transform(path.resolve(tmpDestDir, `${PAUFYYMM}.dbf`), { override: opts.override });
+    consola.info(`Transforming ${pattern}.dbf into a sqlite database...`);
+    transformedPath = await transformer(uncompressPath, { override: opts.override });
     consola.info(`> transform finished.`);
   } catch (error) {
     if (error instanceof DataAlreadyExistsError) {
@@ -88,19 +125,16 @@ async function exec(
 
   ensureDir(destDir);
 
-  mvFile(
-    path.resolve(tmpDestDir, `${PAUFYYMM}.sqlite`),
-    path.resolve(destDir, `${PAUFYYMM}.sqlite`),
-  );
+  mvFile(transformedPath, path.resolve(destDir, path.basename(transformedPath)));
 
   if (opts.keepFiles) {
-    mvFile(path.resolve(tmpDestDir, `${PAUFYYMM}.dbc`), path.resolve(destDir, `${PAUFYYMM}.dbc`));
-    mvFile(path.resolve(tmpDestDir, `${PAUFYYMM}.dbf`), path.resolve(destDir, `${PAUFYYMM}.dbf`));
+    mvFile(downloadPath, path.resolve(destDir, path.basename(downloadPath)));
+    mvFile(uncompressPath, path.resolve(destDir, path.basename(uncompressPath)));
   }
 
   tmpDir.removeCallback();
 
-  consola.success(`ETL process completed successfully for ${PAUFYYMM}.`);
+  consola.success(`ETL process completed successfully for ${pattern}.`);
 }
 
 // create CLI program
@@ -116,13 +150,13 @@ const program = new Command()
 
 // single command
 program
-  .command('single <PAUFYYMM>', { isDefault: true })
-  .description('Download, uncompress and transform a single PAUFYYMM file')
-  .action(async (PAUFYYMM: string, _, cmd) => {
+  .command('single <PAUFYYMM|POPSBRYY>', { isDefault: true })
+  .description('Download, uncompress and transform a single <PAUFYYMM|POPSBRYY> file')
+  .action(async (pattern: string, _, cmd) => {
     consola.box('Steps: Download -> Uncompress -> Transform');
-    await exec(PAUFYYMM, cmd.optsWithGlobals()).catch((err) => {
+    await exec(pattern, cmd.optsWithGlobals()).catch((err) => {
       if (err.code === 550)
-        return consola.warn(`Data for ${PAUFYYMM} not found on server. Skipping.`);
+        return consola.warn(`Data for ${pattern} not found on server. Skipping.`);
       throw err;
     });
   });
@@ -130,14 +164,15 @@ program
 // period command
 program
   .command('period', { isDefault: true })
-  .description('Download, uncompress and transform PAUFYYMM files in a given period')
+  .description('Download, uncompress and transform <PAUFYYMM|POPSBRYY> files in a given period')
   .addOption(
-    new Option('--prefix <PAUF>', 'prefix for PAUFYYMM').default('PAMS').argParser((value) => {
-      if (!/^PA[A-Z]{2}$/.test(value)) {
-        throw new Error('Invalid prefix. Use format PAUF (e.g. PAMS)');
-      }
-      return value;
-    }),
+    new Option('--prefix <PAUF|POPSBR>', 'prefix for <PAUFYYMM|POPSBRYY>')
+      .default('PAMS')
+      .argParser((value) => {
+        if (!/^PA[A-Z]{2}|POPSBR$/g.test(value))
+          throw new Error('Invalid prefix. Use PAUF or POPSBR.');
+        return value;
+      }),
   )
   .addOption(
     new Option('--since <YYYYMM>', 'start date')
@@ -154,7 +189,7 @@ program
       .default(`${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, '0')}`)
       .argParser((value) => {
         if (!/^\d{6}$/.test(value)) {
-          throw new Error('Invalid since date. Use format YYYYMM (e.g. 200801)');
+          throw new Error('Invalid until date. Use format YYYYMM (e.g. 202512)');
         }
         return value;
       }),
@@ -193,11 +228,16 @@ program
     for (let date = since; date <= until; date = inc(date)) {
       const YY = date.slice(2, 4);
       const MM = date.slice(4, 6);
-      const PAUFYYMM = `${prefix}${YY}${MM}`;
+
+      let pattern!: string;
+      if (prefix === 'PAMS') pattern = `${prefix}${YY}${MM}`;
+      else if (prefix === 'POPSBR') pattern = `${prefix}${YY}`;
+      else throw new Error(`Invalid prefix: ${prefix}`);
+
       queue.add(() =>
-        exec(PAUFYYMM, etlOpts).catch((err) => {
+        exec(pattern, etlOpts).catch((err) => {
           if (err.code === 550)
-            return consola.warn(`Data for ${PAUFYYMM} not found on server. Skipping.`);
+            return consola.warn(`Data for ${pattern} not found on server. Skipping.`);
           throw err;
         }),
       );
