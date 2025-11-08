@@ -215,7 +215,7 @@ program
       let month = parseInt(YYYYMM.slice(4, 6), 10);
 
       month += 1;
-      if (month > 12) {
+      if (prefix === 'POPSBR' || month > 12) {
         month = 1;
         year += 1;
       }

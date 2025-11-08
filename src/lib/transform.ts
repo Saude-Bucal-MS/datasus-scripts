@@ -187,11 +187,11 @@ export const transformPA: TransformFn = baseTransform((trx, tableName) =>
 
 export const transformPOP: TransformFn = baseTransform((trx, tableName) =>
   trx.schema.createTable(tableName, (table) => {
-    table.increments('id').primary();
-    table.string('ANO', 4);
-    table.string('COD_MUN', 7);
-    table.string('IDADE', 3);
-    table.integer('POP', 3);
-    table.string('SEXO', 1);
+    table.string('ANO', 4).comment('Ano de referência da estimativa populacional');
+    table.string('COD_MUN', 7).comment('Código do Município (IBGE)');
+    table.string('IDADE', 3).comment('Idade em anos');
+    table.string('SEXO', 1).comment('Sexo: 0 - Total; 1 - Masculino; 2 - Feminino');
+    table.integer('POP', 3).comment('População estimada');
+    table.primary(['COD_MUN', 'IDADE', 'SEXO']);
   }),
 );
