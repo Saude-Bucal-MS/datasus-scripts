@@ -35,7 +35,7 @@ export const uncompressDBC: UncompressFn = async (filepath, opts) => {
 
   execFileSync(blastDbfDir, [filepath, destPath], { stdio: 'ignore', shell: true });
 
-  return filepath;
+  return destPath;
 };
 
 /**

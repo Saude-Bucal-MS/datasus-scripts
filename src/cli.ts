@@ -117,7 +117,7 @@ async function exec(pattern: string, opts: ExecOpts): Promise<void> {
     consola.info(`> transform finished.`);
   } catch (error) {
     if (error instanceof DataAlreadyExistsError) {
-      consola.warn('> .dbf file already transformed. Skipping load step.');
+      consola.warn('> .sqlite file already transformed. Skipping load step.');
     } else {
       throw error;
     }
