@@ -29,7 +29,7 @@ export class DataAlreadyExistsError extends Error {
 export class InvalidPatternError extends Error {
   constructor(message: string) {
     super(message);
-    this.name = 'InvalidPAUFYYMMError';
+    this.name = 'InvalidPatternError';
   }
 }
 
