@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.1.0](https://github.com/Saude-Bucal-MS/datasus-scripts/compare/v1.0.0...v1.1.0) (2025-11-08)
+
+* adiciona pasta data ao dockerignore ([2e8ba38](https://github.com/Saude-Bucal-MS/datasus-scripts/commit/2e8ba38ef4da680b9a4237702905154cb5046a25))
+* adiciona script para coleta do POP do IBGE e refatora código para escalabilidade ([4e7394f](https://github.com/Saude-Bucal-MS/datasus-scripts/commit/4e7394fc13ea5f7cf042b5d9ca74731a7f682292))
+* adiciona submodules no checkout ([1e38130](https://github.com/Saude-Bucal-MS/datasus-scripts/commit/1e3813075c9223f494935960bcf1dc09fb683165))
+* ajusta schema de POP e corrgie bug ([ff3f9f9](https://github.com/Saude-Bucal-MS/datasus-scripts/commit/ff3f9f92bc5f66d6217b3686e8e2227a15265a58))
+* ajusta workflow novamente ([e3c8f89](https://github.com/Saude-Bucal-MS/datasus-scripts/commit/e3c8f89d7d34c6fcaf2bd50bfa031611a63f812b))
+* atualiza readme ([c6b6cc2](https://github.com/Saude-Bucal-MS/datasus-scripts/commit/c6b6cc25c39b131c443036c9d76f79476a76c304))
+* atualiza README ([b852e62](https://github.com/Saude-Bucal-MS/datasus-scripts/commit/b852e621f33cc8826a76f7ea1b478f64c9d5fee0))
+* corrige bugs da refatoração ([be8e70b](https://github.com/Saude-Bucal-MS/datasus-scripts/commit/be8e70b8bf0d8e4827b46c34a6859cfe42318c0c))
+* corrige workflow ([8a7d253](https://github.com/Saude-Bucal-MS/datasus-scripts/commit/8a7d2538e0d581bc121ef48c77827e7cfee0d70a))
+* deixa nome em lower case ([8e810b4](https://github.com/Saude-Bucal-MS/datasus-scripts/commit/8e810b4ebdd3345a66c138ba2389b32f7ad91bb3))
+* remove dependencia desnecessaria e sincroniza tipos ([3477add](https://github.com/Saude-Bucal-MS/datasus-scripts/commit/3477add853e351c9782a93216d8b31dc5e224584))
+
 ## 1.0.0 (2025-10-20)
 
 * adiciona dockerfile e ajusta codigo ([7e333eb](https://github.com/Saude-Bucal-MS/datasus-scripts/commit/7e333eb81ba328fc178d2cdc7819b50540bf7ac2))
